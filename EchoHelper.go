@@ -31,6 +31,22 @@ func (helper *EchoHelper) Echo() *echo.Echo {
 	return helper.echo
 }
 
+func (helper *EchoHelper) APIManager() *apihandler.APIManager {
+	if helper.apiManager == nil {
+		helper.apiManager = apihandler.CreateLocalAPIManager()
+	}
+
+	return helper.apiManager
+}
+
+func (helper *EchoHelper) ServeByAPIManager(w http.ResponseWriter, r *http.Request) {
+	if helper.apiManager != nil {
+		helper.apiManager.ExecuteRequest(r, w)
+	} else {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
 func (helper *EchoHelper) StartLambda(trigger LambdaTrigger) bool {
 	ret := true
 	switch trigger {
@@ -104,26 +120,6 @@ func (helper *EchoHelper) lambdaWithFunctionURLHandler(context context.Context, 
 	}
 
 	return
-}
-
-func (helper *EchoHelper) GetEcho() *echo.Echo {
-	return helper.echo
-}
-
-func (helper *EchoHelper) APIManager() *apihandler.APIManager {
-	if helper.apiManager == nil {
-		helper.apiManager = apihandler.CreateLocalAPIManager()
-	}
-
-	return helper.apiManager
-}
-
-func (helper *EchoHelper) ServeByAPIManager(w http.ResponseWriter, r *http.Request) {
-	if helper.apiManager != nil {
-		helper.apiManager.ExecuteRequest(r, w)
-	} else {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
 }
 
 var sEchoHelperMap map[string](*EchoHelper) = map[string](*EchoHelper){}
