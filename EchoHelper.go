@@ -23,18 +23,16 @@ const (
 )
 
 type EchoHelper struct {
-	echo        *echo.Echo
-	echoHandler echo.HandlerFunc
-	trigger     LambdaTrigger
-	apihandler  *apihandler.APIHandler
+	echo       *echo.Echo
+	apiManager *apihandler.APIManager
 }
 
 func (helper *EchoHelper) Echo() *echo.Echo {
 	return helper.echo
 }
 
-func (helper *EchoHelper) StartLambda(handler echo.HandlerFunc, trigger LambdaTrigger) {
-	helper.echoHandler = handler
+func (helper *EchoHelper) StartLambda(trigger LambdaTrigger) bool {
+	ret := true
 	switch trigger {
 	case APIGateway:
 		awsSDKHelper.StartLambda(helper.lambdaWithApigwHandler)
@@ -43,15 +41,16 @@ func (helper *EchoHelper) StartLambda(handler echo.HandlerFunc, trigger LambdaTr
 	case LambdaFunctionURL:
 		awsSDKHelper.StartLambda(helper.lambdaWithFunctionURLHandler)
 	default:
-		helper.echoHandler = nil
+		ret = false
 	}
+	return ret
 }
 
 func (helper *EchoHelper) lambdaWithApigwHandler(context context.Context, request *events.APIGatewayProxyRequest) (ret *events.APIGatewayProxyResponse, retErr error) {
 	if httpRequest, convErr := awsSDKHelper.FromAPIGatewayProxyRequest2HttpRequest(request); convErr == nil {
 		httpResponse := ThcompUtility.NewHttpResponseHelper()
-		helper.echo.ServeHTTP(&httpResponse, httpRequest)
-		if ret, convErr = awsSDKHelper.FromHttpResponse2APIGatewayProxyResponse(httpResponse); convErr != nil {
+		helper.echo.ServeHTTP(httpResponse, httpRequest)
+		if ret, convErr = awsSDKHelper.FromHttpResponse2APIGatewayProxyResponse(httpResponse.ExportHttpResponse()); convErr != nil {
 			retErr = convErr
 			ret = &events.APIGatewayProxyResponse{
 				StatusCode: http.StatusInternalServerError,
@@ -70,8 +69,8 @@ func (helper *EchoHelper) lambdaWithApigwHandler(context context.Context, reques
 func (helper *EchoHelper) lambdaWithApigwV2Handler(context context.Context, request *events.APIGatewayV2HTTPRequest) (ret *events.APIGatewayV2HTTPResponse, retErr error) {
 	if httpRequest, convErr := awsSDKHelper.FromAPIGatewayV2HTTPRequest2HttpRequest(request); convErr == nil {
 		httpResponse := ThcompUtility.NewHttpResponseHelper()
-		helper.echo.ServeHTTP(&httpResponse, httpRequest)
-		if ret, convErr = awsSDKHelper.FromHttpResponse2APIGatewayV2HTTPResponse(httpResponse); convErr != nil {
+		helper.echo.ServeHTTP(httpResponse, httpRequest)
+		if ret, convErr = awsSDKHelper.FromHttpResponse2APIGatewayV2HTTPResponse(httpResponse.ExportHttpResponse()); convErr != nil {
 			retErr = convErr
 			ret = &events.APIGatewayV2HTTPResponse{
 				StatusCode: http.StatusInternalServerError,
@@ -90,8 +89,8 @@ func (helper *EchoHelper) lambdaWithApigwV2Handler(context context.Context, requ
 func (helper *EchoHelper) lambdaWithFunctionURLHandler(context context.Context, request *events.LambdaFunctionURLRequest) (ret *events.LambdaFunctionURLResponse, retErr error) {
 	if httpRequest, convErr := awsSDKHelper.FromLambdaFunctionURLRequest2HttpRequest(request); convErr == nil {
 		httpResponse := ThcompUtility.NewHttpResponseHelper()
-		helper.echo.ServeHTTP(&httpResponse, httpRequest)
-		if ret, convErr = awsSDKHelper.FromHttpResponse2LambdaFunctionURLResponse(httpResponse); convErr != nil {
+		helper.echo.ServeHTTP(httpResponse, httpRequest)
+		if ret, convErr = awsSDKHelper.FromHttpResponse2LambdaFunctionURLResponse(httpResponse.ExportHttpResponse()); convErr != nil {
 			retErr = convErr
 			ret = &events.LambdaFunctionURLResponse{
 				StatusCode: http.StatusInternalServerError,
@@ -107,28 +106,79 @@ func (helper *EchoHelper) lambdaWithFunctionURLHandler(context context.Context, 
 	return
 }
 
-func (helper *EchoHelper) APIHandler() *apihandler.APIHandler {
-	if helper.apihandler == nil {
-		helper.apihandler = apihandler.CreateLocalAPIManager()
-	}
-
-	return helper.apihandler
+func (helper *EchoHelper) GetEcho() *echo.Echo {
+	return helper.echo
 }
 
-var sEchoHelperMap map[*echo.Echo](*EchoHelper) = map[*echo.Echo](*EchoHelper){}
+func (helper *EchoHelper) APIManager() *apihandler.APIManager {
+	if helper.apiManager == nil {
+		helper.apiManager = apihandler.CreateLocalAPIManager()
+	}
 
-func GetEchoHelper(echoInfs ...interface{}) (ret *EchoHelper) {
-	if echoInfs != nil && len(echoInfs) > 0 {
-		if echoIns, assertionOK := echoInfs[0].(*echo.Echo); assertionOK {
-			if tempRet, exist := sEchoHelperMap[echoIns]; exist {
+	return helper.apiManager
+}
+
+func (helper *EchoHelper) ServeByAPIManager(w http.ResponseWriter, r *http.Request) {
+	if helper.apiManager != nil {
+		helper.apiManager.ExecuteRequest(r, w)
+	} else {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
+var sEchoHelperMap map[string](*EchoHelper) = map[string](*EchoHelper){}
+
+const sGlobalEchoHelperName = "### global ###"
+
+func GetEchoHelper(params ...interface{}) (ret *EchoHelper) {
+	if len(params) > 0 {
+		if name, assertionOK := params[0].(string); assertionOK {
+			if tempRet, exist := sEchoHelperMap[name]; exist {
 				ret = tempRet
+			}
+		} else if echoIns, assertionOK := params[0].(*echo.Echo); assertionOK {
+			for _, echoHelper := range sEchoHelperMap {
+				if echoHelper.echo == echoIns {
+					ret = echoHelper
+					break
+				}
 			}
 		}
 	} else {
-		ret = &EchoHelper{
-			echo: echo.New(),
+		if tempRet, exist := sEchoHelperMap[sGlobalEchoHelperName]; exist {
+			ret = tempRet
+		} else {
+			ret = &EchoHelper{
+				echo: echo.New(),
+			}
+			sEchoHelperMap[sGlobalEchoHelperName] = ret
 		}
-		sEchoHelperMap[ret.echo] = ret
+	}
+
+	return ret
+}
+
+func DeleteEchoHelper(params ...interface{}) (ret bool) {
+	if len(params) > 0 {
+		if name, assertionOK := params[0].(string); assertionOK {
+			if _, exist := sEchoHelperMap[name]; exist {
+				delete(sEchoHelperMap, name)
+				ret = true
+			}
+		} else if echoIns, assertionOK := params[0].(*echo.Echo); assertionOK {
+			for key, echoHelper := range sEchoHelperMap {
+				if echoHelper.echo == echoIns {
+					delete(sEchoHelperMap, key)
+					ret = true
+					break
+				}
+			}
+		}
+	} else {
+		if _, exist := sEchoHelperMap[sGlobalEchoHelperName]; exist {
+			delete(sEchoHelperMap, sGlobalEchoHelperName)
+			ret = true
+		}
 	}
 
 	return ret
