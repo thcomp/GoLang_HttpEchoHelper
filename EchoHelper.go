@@ -65,7 +65,23 @@ func (helper *EchoHelper) StartLambda(trigger LambdaTrigger) bool {
 func (helper *EchoHelper) lambdaWithApigwHandler(context context.Context, request *events.APIGatewayProxyRequest) (ret *events.APIGatewayProxyResponse, retErr error) {
 	if httpRequest, convErr := awsSDKHelper.FromAPIGatewayProxyRequest2HttpRequest(request); convErr == nil {
 		httpResponse := ThcompUtility.NewHttpResponseHelper()
-		helper.echo.ServeHTTP(httpResponse, httpRequest)
+		useEcho := false
+
+		if helper.apiManager != nil {
+			helper.apiManager.ExecuteRequest(httpRequest, httpResponse)
+			if httpResponse.ExportHttpResponse().StatusCode == http.StatusNotFound {
+				// JSONなどのAPI Manager側で未登録により処理を行わなかった場合に、初期値に戻す
+				httpResponse.WriteHeader(http.StatusOK)
+				useEcho = true
+			}
+		} else {
+			useEcho = true
+		}
+
+		if useEcho {
+			helper.echo.ServeHTTP(httpResponse, httpRequest)
+		}
+
 		if ret, convErr = awsSDKHelper.FromHttpResponse2APIGatewayProxyResponse(httpResponse.ExportHttpResponse()); convErr != nil {
 			retErr = convErr
 			ret = &events.APIGatewayProxyResponse{
@@ -85,7 +101,23 @@ func (helper *EchoHelper) lambdaWithApigwHandler(context context.Context, reques
 func (helper *EchoHelper) lambdaWithApigwV2Handler(context context.Context, request *events.APIGatewayV2HTTPRequest) (ret *events.APIGatewayV2HTTPResponse, retErr error) {
 	if httpRequest, convErr := awsSDKHelper.FromAPIGatewayV2HTTPRequest2HttpRequest(request); convErr == nil {
 		httpResponse := ThcompUtility.NewHttpResponseHelper()
-		helper.echo.ServeHTTP(httpResponse, httpRequest)
+		useEcho := false
+
+		if helper.apiManager != nil {
+			helper.apiManager.ExecuteRequest(httpRequest, httpResponse)
+			if httpResponse.ExportHttpResponse().StatusCode == http.StatusNotFound {
+				// JSONなどのAPI Manager側で未登録により処理を行わなかった場合に、初期値に戻す
+				httpResponse.WriteHeader(http.StatusOK)
+				useEcho = true
+			}
+		} else {
+			useEcho = true
+		}
+
+		if useEcho {
+			helper.echo.ServeHTTP(httpResponse, httpRequest)
+		}
+
 		if ret, convErr = awsSDKHelper.FromHttpResponse2APIGatewayV2HTTPResponse(httpResponse.ExportHttpResponse()); convErr != nil {
 			retErr = convErr
 			ret = &events.APIGatewayV2HTTPResponse{
