@@ -105,7 +105,23 @@ func (helper *EchoHelper) lambdaWithApigwV2Handler(context context.Context, requ
 func (helper *EchoHelper) lambdaWithFunctionURLHandler(context context.Context, request *events.LambdaFunctionURLRequest) (ret *events.LambdaFunctionURLResponse, retErr error) {
 	if httpRequest, convErr := awsSDKHelper.FromLambdaFunctionURLRequest2HttpRequest(request); convErr == nil {
 		httpResponse := ThcompUtility.NewHttpResponseHelper()
-		helper.echo.ServeHTTP(httpResponse, httpRequest)
+		useEcho := false
+
+		if helper.apiManager != nil {
+			helper.apiManager.ExecuteRequest(httpRequest, httpResponse)
+			if httpResponse.ExportHttpResponse().StatusCode == http.StatusNotFound {
+				// JSONなどのAPI Manager側で未登録により処理を行わなかった場合に、初期値に戻す
+				httpResponse.WriteHeader(http.StatusOK)
+				useEcho = true
+			}
+		} else {
+			useEcho = true
+		}
+
+		if useEcho {
+			helper.echo.ServeHTTP(httpResponse, httpRequest)
+		}
+
 		if ret, convErr = awsSDKHelper.FromHttpResponse2LambdaFunctionURLResponse(httpResponse.ExportHttpResponse()); convErr != nil {
 			retErr = convErr
 			ret = &events.LambdaFunctionURLResponse{
