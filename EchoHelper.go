@@ -28,6 +28,10 @@ type EchoHelper struct {
 }
 
 func (helper *EchoHelper) Echo() *echo.Echo {
+	if helper.echo == nil {
+		helper.echo = echo.New()
+	}
+
 	return helper.echo
 }
 
@@ -79,7 +83,7 @@ func (helper *EchoHelper) lambdaWithApigwHandler(context context.Context, reques
 		}
 
 		if useEcho {
-			helper.echo.ServeHTTP(httpResponse, httpRequest)
+			helper.Echo().ServeHTTP(httpResponse, httpRequest)
 		}
 
 		if ret, convErr = awsSDKHelper.FromHttpResponse2APIGatewayProxyResponse(httpResponse.ExportHttpResponse()); convErr != nil {
@@ -115,7 +119,7 @@ func (helper *EchoHelper) lambdaWithApigwV2Handler(context context.Context, requ
 		}
 
 		if useEcho {
-			helper.echo.ServeHTTP(httpResponse, httpRequest)
+			helper.Echo().ServeHTTP(httpResponse, httpRequest)
 		}
 
 		if ret, convErr = awsSDKHelper.FromHttpResponse2APIGatewayV2HTTPResponse(httpResponse.ExportHttpResponse()); convErr != nil {
@@ -151,7 +155,7 @@ func (helper *EchoHelper) lambdaWithFunctionURLHandler(context context.Context, 
 		}
 
 		if useEcho {
-			helper.echo.ServeHTTP(httpResponse, httpRequest)
+			helper.Echo().ServeHTTP(httpResponse, httpRequest)
 		}
 
 		if ret, convErr = awsSDKHelper.FromHttpResponse2LambdaFunctionURLResponse(httpResponse.ExportHttpResponse()); convErr != nil {
@@ -182,7 +186,7 @@ func GetEchoHelper(params ...interface{}) (ret *EchoHelper) {
 			}
 		} else if echoIns, assertionOK := params[0].(*echo.Echo); assertionOK {
 			for _, echoHelper := range sEchoHelperMap {
-				if echoHelper.echo == echoIns {
+				if echoHelper.Echo() == echoIns {
 					ret = echoHelper
 					break
 				}
@@ -211,7 +215,7 @@ func DeleteEchoHelper(params ...interface{}) (ret bool) {
 			}
 		} else if echoIns, assertionOK := params[0].(*echo.Echo); assertionOK {
 			for key, echoHelper := range sEchoHelperMap {
-				if echoHelper.echo == echoIns {
+				if echoHelper.Echo() == echoIns {
 					delete(sEchoHelperMap, key)
 					ret = true
 					break
