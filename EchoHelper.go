@@ -183,6 +183,9 @@ func GetEchoHelper(params ...interface{}) (ret *EchoHelper) {
 		if name, assertionOK := params[0].(string); assertionOK {
 			if tempRet, exist := sEchoHelperMap[name]; exist {
 				ret = tempRet
+			} else {
+				ret = &EchoHelper{}
+				sEchoHelperMap[name] = ret
 			}
 		} else if echoIns, assertionOK := params[0].(*echo.Echo); assertionOK {
 			for _, echoHelper := range sEchoHelperMap {
@@ -196,9 +199,7 @@ func GetEchoHelper(params ...interface{}) (ret *EchoHelper) {
 		if tempRet, exist := sEchoHelperMap[sGlobalEchoHelperName]; exist {
 			ret = tempRet
 		} else {
-			ret = &EchoHelper{
-				echo: echo.New(),
-			}
+			ret = &EchoHelper{}
 			sEchoHelperMap[sGlobalEchoHelperName] = ret
 		}
 	}
