@@ -68,7 +68,7 @@ func (helper *EchoHelper) StartLambda(trigger LambdaTrigger) bool {
 
 func (helper *EchoHelper) lambdaWithApigwHandler(context context.Context, request *events.APIGatewayProxyRequest) (ret *events.APIGatewayProxyResponse, retErr error) {
 	if httpRequest, convErr := awsSDKHelper.FromAPIGatewayProxyRequest2HttpRequest(request); convErr == nil {
-		httpResponse := ThcompUtility.NewHttpResponseHelper()
+		httpResponse := ThcompUtility.NewHttpResponseHelper(httpRequest)
 		useEcho := false
 
 		if helper.apiManager != nil {
@@ -104,7 +104,7 @@ func (helper *EchoHelper) lambdaWithApigwHandler(context context.Context, reques
 
 func (helper *EchoHelper) lambdaWithApigwV2Handler(context context.Context, request *events.APIGatewayV2HTTPRequest) (ret *events.APIGatewayV2HTTPResponse, retErr error) {
 	if httpRequest, convErr := awsSDKHelper.FromAPIGatewayV2HTTPRequest2HttpRequest(request); convErr == nil {
-		httpResponse := ThcompUtility.NewHttpResponseHelper()
+		httpResponse := ThcompUtility.NewHttpResponseHelper(httpRequest)
 		useEcho := false
 
 		if helper.apiManager != nil {
@@ -140,7 +140,7 @@ func (helper *EchoHelper) lambdaWithApigwV2Handler(context context.Context, requ
 
 func (helper *EchoHelper) lambdaWithFunctionURLHandler(context context.Context, request *events.LambdaFunctionURLRequest) (ret *events.LambdaFunctionURLResponse, retErr error) {
 	if httpRequest, convErr := awsSDKHelper.FromLambdaFunctionURLRequest2HttpRequest(request); convErr == nil {
-		httpResponse := ThcompUtility.NewHttpResponseHelper()
+		httpResponse := ThcompUtility.NewHttpResponseHelper(httpRequest)
 		useEcho := false
 
 		if helper.apiManager != nil {
