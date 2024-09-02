@@ -7,7 +7,7 @@ require (
 	github.com/labstack/echo/v4 v4.11.4
 	github.com/thcomp/GoLang_APIHandler v1.0.0
 	github.com/thcomp/GoLang_AwsSDKHelper v1.0.2
-	github.com/thcomp/GoLang_Utility v1.29.9
+	github.com/thcomp/GoLang_Utility v1.29.10
 )
 
 require (

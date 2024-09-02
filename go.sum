@@ -21,8 +21,8 @@ github.com/thcomp/GoLang_APIHandler v1.0.0 h1:GQduKXtvXrLvFC40E5hEK1RpKPScg0Wbxj
 github.com/thcomp/GoLang_APIHandler v1.0.0/go.mod h1:XksOxo16KvrcY300Lwz8HoYM09Xxb1lJ1rzJ+3Z8WAI=
 github.com/thcomp/GoLang_AwsSDKHelper v1.0.2 h1:eiN+ZgkuDqoGT+tMUN5pb73pC1yPCOt6iHaVmktX4Bo=
 github.com/thcomp/GoLang_AwsSDKHelper v1.0.2/go.mod h1:1ePO1Cg3k+VkJ1RWjufKPJgkXoehsbVL12yscIUx4u4=
-github.com/thcomp/GoLang_Utility v1.29.9 h1:WIWL7GhQHhGbi5bi5I5FMrPbyFogBh8Ka86sKpEVeTI=
-github.com/thcomp/GoLang_Utility v1.29.9/go.mod h1:ges+bpSSIl0BpDUjFYVM3RH1ilhtUHHvcrp69fkzq/M=
+github.com/thcomp/GoLang_Utility v1.29.10 h1:F54M+2hjJYAJWfZ5gEf0ZTmk9kpb0J+5mI/0HEDu86k=
+github.com/thcomp/GoLang_Utility v1.29.10/go.mod h1:ges+bpSSIl0BpDUjFYVM3RH1ilhtUHHvcrp69fkzq/M=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasttemplate v1.2.2 h1:lxLXG0uE3Qnshl9QyaK6XJxMXlQZELvChBOCmQD0Loo=
