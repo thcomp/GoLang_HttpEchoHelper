@@ -5,7 +5,7 @@ go 1.22.1
 require (
 	github.com/aws/aws-lambda-go v1.46.0
 	github.com/labstack/echo/v4 v4.11.4
-	github.com/thcomp/GoLang_APIHandler v1.0.0
+	github.com/thcomp/GoLang_APIHandler v1.1.0
 	github.com/thcomp/GoLang_AwsSDKHelper v1.0.2
 	github.com/thcomp/GoLang_Utility v1.29.10
 )
