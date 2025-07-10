@@ -3,16 +3,19 @@ package HttpEchoHelper
 import (
 	"context"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/labstack/echo/v4"
 	apihandler "github.com/thcomp/GoLang_APIHandler"
 	awsSDKHelper "github.com/thcomp/GoLang_AwsSDKHelper"
+	HttpEntityHelper "github.com/thcomp/GoLang_HttpEntityHelper"
 	ThcompUtility "github.com/thcomp/GoLang_Utility"
 )
 
 type EchoHelperFunc func(helper *EchoHelper) error
-
+type SubHandlerFunc func(echoIns *echo.Echo, entity HttpEntityHelper.HttpEntity) error
 type LambdaTrigger int
 
 const (
@@ -22,9 +25,17 @@ const (
 	LambdaFunctionURL
 )
 
+type SubHandlerInterface interface {
+	NeedAuth() bool
+	IsAcceptable(ctx echo.Context) bool
+	Entity(ctx echo.Context) (HttpEntityHelper.HttpEntity, error)
+	Handler(echoIns *echo.Echo, entity HttpEntityHelper.HttpEntity) error
+}
+
 type EchoHelper struct {
-	echo       *echo.Echo
-	apiManager *apihandler.APIManager
+	echo          *echo.Echo
+	apiManager    *apihandler.APIManager
+	subHandlerMap map[string] /*http method*/ ([]SubHandlerInterface)
 }
 
 func (helper *EchoHelper) Echo() *echo.Echo {
@@ -35,6 +46,7 @@ func (helper *EchoHelper) Echo() *echo.Echo {
 	return helper.echo
 }
 
+// @deprecated
 func (helper *EchoHelper) APIManager() *apihandler.APIManager {
 	if helper.apiManager == nil {
 		helper.apiManager = apihandler.CreateLocalAPIManager()
@@ -43,12 +55,134 @@ func (helper *EchoHelper) APIManager() *apihandler.APIManager {
 	return helper.apiManager
 }
 
+// @deprecated
 func (helper *EchoHelper) ServeByAPIManager(w http.ResponseWriter, r *http.Request) {
 	if helper.apiManager != nil {
 		helper.apiManager.ExecuteRequest(r, w)
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+}
+
+func (helper *EchoHelper) Any(path string, handler echo.HandlerFunc) *EchoHelper {
+	helper.Echo().Any(path, handler)
+	return helper
+}
+
+func (helper *EchoHelper) Get(path string, handler echo.HandlerFunc) *EchoHelper {
+	helper.Echo().GET(path, handler)
+	return helper
+}
+
+func (helper *EchoHelper) Post(path string, handler echo.HandlerFunc) *EchoHelper {
+	helper.Echo().POST(path, handler)
+	return helper
+}
+
+func (helper *EchoHelper) Delete(path string, handler echo.HandlerFunc) *EchoHelper {
+	helper.Echo().DELETE(path, handler)
+	return helper
+}
+
+func (helper *EchoHelper) Put(path string, handler echo.HandlerFunc) *EchoHelper {
+	helper.Echo().PUT(path, handler)
+	return helper
+}
+
+func (helper *EchoHelper) Options(path string, handler echo.HandlerFunc) *EchoHelper {
+	helper.Echo().OPTIONS(path, handler)
+	return helper
+}
+
+func (helper *EchoHelper) Head(path string, handler echo.HandlerFunc) *EchoHelper {
+	helper.Echo().HEAD(path, handler)
+	return helper
+}
+
+func (helper *EchoHelper) AnyWithSubHandler(path string, subHandler SubHandlerInterface) *EchoHelper {
+	return helper.withHandler("any", path, subHandler)
+}
+
+func (helper *EchoHelper) GetWithSubHandler(path string, subHandler SubHandlerInterface) *EchoHelper {
+	return helper.withHandler("get", path, subHandler)
+}
+
+func (helper *EchoHelper) PostWithSubHandler(path string, subHandler SubHandlerInterface) *EchoHelper {
+	return helper.withHandler("post", path, subHandler)
+}
+
+func (helper *EchoHelper) DeleteWithSubHandler(path string, subHandler SubHandlerInterface) *EchoHelper {
+	return helper.withHandler("delete", path, subHandler)
+}
+
+func (helper *EchoHelper) PutWithSubHandler(path string, subHandler SubHandlerInterface) *EchoHelper {
+	return helper.withHandler("put", path, subHandler)
+}
+
+func (helper *EchoHelper) OptionsWithSubHandler(path string, subHandler SubHandlerInterface) *EchoHelper {
+	return helper.withHandler("options", path, subHandler)
+}
+
+func (helper *EchoHelper) HeadWithSubHandler(path string, subHandler SubHandlerInterface) *EchoHelper {
+	return helper.withHandler("head", path, subHandler)
+}
+
+func (helper *EchoHelper) withHandler(httpMethod, path string, subHandler SubHandlerInterface) *EchoHelper {
+	if helper.subHandlerMap == nil {
+		helper.subHandlerMap = make(map[string][]SubHandlerInterface)
+	}
+	if _, exist := helper.subHandlerMap[httpMethod]; !exist {
+		helper.subHandlerMap[httpMethod] = make([]SubHandlerInterface, 0)
+	}
+	helper.subHandlerMap[httpMethod] = append(helper.subHandlerMap[httpMethod], subHandler)
+
+	if httpMethod == "any" {
+		helper.Echo().Any(path, helper.firstHandlerForSub)
+	} else {
+		helper.Echo().Add(httpMethod, path, helper.firstHandlerForSub)
+	}
+
+	return helper
+}
+
+func (helper *EchoHelper) firstHandlerForSub(c echo.Context) (retErr error) {
+	// 先にメソッドが一致するものを優先する
+	httpMethod := strings.ToLower(c.Request().Method)
+	if handlers, exist := helper.subHandlerMap[httpMethod]; exist {
+		for _, handler := range handlers {
+			if handler.IsAcceptable(c) {
+				if entity, err := handler.Entity(c); err != nil {
+					retErr = err
+				} else {
+					retErr = handler.Handler(helper.Echo(), entity)
+				}
+
+				return
+			}
+		}
+	}
+
+	// メソッドが一致しない場合は、全てのハンドラを
+	httpMethod = "any"
+	if handlers, exist := helper.subHandlerMap[httpMethod]; exist {
+		for _, handler := range handlers {
+			if handler.IsAcceptable(c) {
+				if entity, err := handler.Entity(c); err != nil {
+					retErr = err
+				} else {
+					retErr = handler.Handler(helper.Echo(), entity)
+				}
+
+				return
+			}
+		}
+	}
+
+	return c.NoContent(http.StatusNotFound)
+}
+
+func (helper *EchoHelper) StartServer(port int) {
+	helper.Echo().Logger.Fatal(helper.echo.Start(":" + strconv.FormatInt(int64(port), 10)))
 }
 
 func (helper *EchoHelper) StartLambda(trigger LambdaTrigger) bool {
@@ -172,63 +306,4 @@ func (helper *EchoHelper) lambdaWithFunctionURLHandler(context context.Context, 
 	}
 
 	return
-}
-
-var sEchoHelperMap map[string](*EchoHelper) = map[string](*EchoHelper){}
-
-const sGlobalEchoHelperName = "### global ###"
-
-func GetEchoHelper(params ...interface{}) (ret *EchoHelper) {
-	if len(params) > 0 {
-		if name, assertionOK := params[0].(string); assertionOK {
-			if tempRet, exist := sEchoHelperMap[name]; exist {
-				ret = tempRet
-			} else {
-				ret = &EchoHelper{}
-				sEchoHelperMap[name] = ret
-			}
-		} else if echoIns, assertionOK := params[0].(*echo.Echo); assertionOK {
-			for _, echoHelper := range sEchoHelperMap {
-				if echoHelper.Echo() == echoIns {
-					ret = echoHelper
-					break
-				}
-			}
-		}
-	} else {
-		if tempRet, exist := sEchoHelperMap[sGlobalEchoHelperName]; exist {
-			ret = tempRet
-		} else {
-			ret = &EchoHelper{}
-			sEchoHelperMap[sGlobalEchoHelperName] = ret
-		}
-	}
-
-	return ret
-}
-
-func DeleteEchoHelper(params ...interface{}) (ret bool) {
-	if len(params) > 0 {
-		if name, assertionOK := params[0].(string); assertionOK {
-			if _, exist := sEchoHelperMap[name]; exist {
-				delete(sEchoHelperMap, name)
-				ret = true
-			}
-		} else if echoIns, assertionOK := params[0].(*echo.Echo); assertionOK {
-			for key, echoHelper := range sEchoHelperMap {
-				if echoHelper.Echo() == echoIns {
-					delete(sEchoHelperMap, key)
-					ret = true
-					break
-				}
-			}
-		}
-	} else {
-		if _, exist := sEchoHelperMap[sGlobalEchoHelperName]; exist {
-			delete(sEchoHelperMap, sGlobalEchoHelperName)
-			ret = true
-		}
-	}
-
-	return ret
 }
