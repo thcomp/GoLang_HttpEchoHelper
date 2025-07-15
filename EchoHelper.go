@@ -15,7 +15,7 @@ import (
 )
 
 type EchoHelperFunc func(helper *EchoHelper) error
-type SubHandlerFunc func(echoIns *echo.Echo, entity HttpEntityHelper.HttpEntity) error
+type SubHandlerFunc func(ctx echo.Context, entity HttpEntityHelper.HttpEntity) error
 type LambdaTrigger int
 
 const (
@@ -29,7 +29,7 @@ type SubHandlerInterface interface {
 	NeedAuth() bool
 	IsAcceptable(ctx echo.Context) bool
 	Entity(ctx echo.Context) (HttpEntityHelper.HttpEntity, error)
-	Handler(echoIns *echo.Echo, entity HttpEntityHelper.HttpEntity) error
+	Handler(ctx echo.Context, entity HttpEntityHelper.HttpEntity) error
 }
 
 type EchoHelper struct {
@@ -154,7 +154,7 @@ func (helper *EchoHelper) firstHandlerForSub(c echo.Context) (retErr error) {
 				if entity, err := handler.Entity(c); err != nil {
 					retErr = err
 				} else {
-					retErr = handler.Handler(helper.Echo(), entity)
+					retErr = handler.Handler(c, entity)
 				}
 
 				return
@@ -170,7 +170,7 @@ func (helper *EchoHelper) firstHandlerForSub(c echo.Context) (retErr error) {
 				if entity, err := handler.Entity(c); err != nil {
 					retErr = err
 				} else {
-					retErr = handler.Handler(helper.Echo(), entity)
+					retErr = handler.Handler(c, entity)
 				}
 
 				return
