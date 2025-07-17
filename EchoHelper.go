@@ -10,12 +10,12 @@ import (
 	"github.com/labstack/echo/v4"
 	apihandler "github.com/thcomp/GoLang_APIHandler"
 	awsSDKHelper "github.com/thcomp/GoLang_AwsSDKHelper"
-	HttpEntityHelper "github.com/thcomp/GoLang_HttpEntityHelper"
+	"github.com/thcomp/GoLang_HttpEntityHelper/entity"
 	ThcompUtility "github.com/thcomp/GoLang_Utility"
 )
 
 type EchoHelperFunc func(helper *EchoHelper) error
-type SubHandlerFunc func(ctx echo.Context, entity HttpEntityHelper.HttpEntity) error
+type SubHandlerFunc func(ctx echo.Context, entity entity.HttpEntity) error
 type LambdaTrigger int
 
 const (
@@ -28,8 +28,8 @@ const (
 type SubHandlerInterface interface {
 	NeedAuth() bool
 	IsAcceptable(ctx echo.Context) bool
-	Entity(ctx echo.Context) (HttpEntityHelper.HttpEntity, error)
-	Handler(ctx echo.Context, entity HttpEntityHelper.HttpEntity) error
+	Entity(ctx echo.Context) (entity.HttpEntity, error)
+	Handler(ctx echo.Context, entity entity.HttpEntity) error
 }
 
 type EchoHelper struct {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/labstack/echo/v4"
-	HttpEntityHelper "github.com/thcomp/GoLang_HttpEntityHelper"
+	"github.com/thcomp/GoLang_HttpEntityHelper/entity"
 	"github.com/thcomp/GoLang_HttpEntityHelper/jsonrpc"
 )
 
@@ -33,10 +33,10 @@ func (handler *JSONRPCHandler) IsAcceptable(ctx echo.Context) bool {
 	return true
 }
 
-func (handler *JSONRPCHandler) Entity(ctx echo.Context) (HttpEntityHelper.HttpEntity, error) {
+func (handler *JSONRPCHandler) Entity(ctx echo.Context) (entity.HttpEntity, error) {
 	return jsonrpc.NewJSONRPCParser().Parse(ctx.Request()) // Parse the JSON-RPC request
 }
 
-func (handler *JSONRPCHandler) Handler(ctx echo.Context, entity HttpEntityHelper.HttpEntity) error {
+func (handler *JSONRPCHandler) Handler(ctx echo.Context, entity entity.HttpEntity) error {
 	return handler.handler(ctx, entity) // Replace with actual handling logic
 }

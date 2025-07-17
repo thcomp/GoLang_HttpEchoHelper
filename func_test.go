@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v4"
-	HttpEntityHelper "github.com/thcomp/GoLang_HttpEntityHelper"
+	"github.com/thcomp/GoLang_HttpEntityHelper/entity"
 )
 
 func Test_1(t *testing.T) {
@@ -27,7 +27,7 @@ func Test_1(t *testing.T) {
 
 func Test_2(t *testing.T) {
 	// Example test case for NewJSONRPCHandler
-	handler, err := NewJSONRPCHandler(true, func(ctx echo.Context, entity HttpEntityHelper.HttpEntity) error {
+	handler, err := NewJSONRPCHandler(true, func(ctx echo.Context, entity entity.HttpEntity) error {
 		return nil // Example handler logic
 	})
 	if err != nil {
