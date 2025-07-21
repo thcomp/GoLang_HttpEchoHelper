@@ -1,26 +1,33 @@
 package HttpEchoHelper
 
 import (
-	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/thcomp/GoLang_HttpEntityHelper/entity"
 	"github.com/thcomp/GoLang_HttpEntityHelper/jsonrpc"
+	ThcompUtility "github.com/thcomp/GoLang_Utility"
 )
 
 type JSONRPCHandler struct {
-	needAuth bool
-	handler  SubHandlerFunc
+	createdByNew bool
+	method       string
+	needAuth     bool
+	handler      SubHandlerFunc
 }
 
-func NewJSONRPCHandler(needAuth bool, handler SubHandlerFunc) (*JSONRPCHandler, error) {
+func NewJSONRPCHandler(jsonrpcMethod string, needAuth bool, handler SubHandlerFunc) *JSONRPCHandler {
 	if handler == nil {
-		return nil, fmt.Errorf("handler cannot be nil")
+		ThcompUtility.LogfE("handler cannot be nil")
+		return nil
 	} else {
 		return &JSONRPCHandler{
-			needAuth: needAuth,
-			handler:  handler,
-		}, nil
+			createdByNew: true,
+			method:       jsonrpcMethod,
+			needAuth:     needAuth,
+			handler:      handler,
+		}
 	}
 }
 
@@ -29,8 +36,21 @@ func (handler *JSONRPCHandler) NeedAuth() bool {
 }
 
 func (handler *JSONRPCHandler) IsAcceptable(ctx echo.Context) bool {
-	// Implement your logic to check if the request is acceptable
-	return true
+	header := (http.Header)(nil)
+	if ctx.Request() != nil {
+		header = ctx.Request().Header
+	} else if ctx.Response() != nil {
+		header = ctx.Response().Header()
+	}
+
+	if header != nil {
+		contentType := header.Get("Content-Type")
+		if strings.Contains(contentType, "application/json") {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (handler *JSONRPCHandler) Entity(ctx echo.Context) (entity.HttpEntity, error) {

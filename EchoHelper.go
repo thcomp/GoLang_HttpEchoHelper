@@ -2,6 +2,7 @@ package HttpEchoHelper
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,6 +18,8 @@ import (
 type EchoHelperFunc func(helper *EchoHelper) error
 type SubHandlerFunc func(ctx echo.Context, entity entity.HttpEntity) error
 type LambdaTrigger int
+
+var ErrUnknownMethod = fmt.Errorf("handler not known this method, continue to next handler")
 
 const (
 	None LambdaTrigger = iota
@@ -146,39 +149,58 @@ func (helper *EchoHelper) withHandler(httpMethod, path string, subHandler SubHan
 }
 
 func (helper *EchoHelper) firstHandlerForSub(c echo.Context) (retErr error) {
+	notFound := false
+
 	// 先にメソッドが一致するものを優先する
+	acceptableHandlers := make([]SubHandlerInterface, 0)
 	httpMethod := strings.ToLower(c.Request().Method)
 	if handlers, exist := helper.subHandlerMap[httpMethod]; exist {
 		for _, handler := range handlers {
 			if handler.IsAcceptable(c) {
-				if entity, err := handler.Entity(c); err != nil {
-					retErr = err
-				} else {
-					retErr = handler.Handler(c, entity)
-				}
-
-				return
+				acceptableHandlers = append(acceptableHandlers, handler)
 			}
 		}
 	}
 
-	// メソッドが一致しない場合は、全てのハンドラを
-	httpMethod = "any"
-	if handlers, exist := helper.subHandlerMap[httpMethod]; exist {
-		for _, handler := range handlers {
-			if handler.IsAcceptable(c) {
-				if entity, err := handler.Entity(c); err != nil {
-					retErr = err
-				} else {
-					retErr = handler.Handler(c, entity)
+	if len(acceptableHandlers) == 0 {
+		// メソッドが一致しない場合は、全てのハンドラを
+		httpMethod = "any"
+		if handlers, exist := helper.subHandlerMap[httpMethod]; exist {
+			for _, handler := range handlers {
+				if handler.IsAcceptable(c) {
+					acceptableHandlers = append(acceptableHandlers, handler)
 				}
-
-				return
 			}
 		}
 	}
 
-	return c.NoContent(http.StatusNotFound)
+	if len(acceptableHandlers) > 0 {
+		notFound = true
+		for _, handler := range acceptableHandlers {
+			if entity, err := handler.Entity(c); err == nil {
+				tempErr := handler.Handler(c, entity)
+				if tempErr == nil {
+					notFound = false
+					break
+				} else if tempErr == ErrUnknownMethod {
+					continue
+				} else {
+					retErr = tempErr
+					break
+				}
+			} else {
+				// retErr = err
+			}
+		}
+	} else {
+		notFound = true
+	}
+
+	if notFound {
+		return c.NoContent(http.StatusNotFound)
+	} else {
+		return retErr
+	}
 }
 
 func (helper *EchoHelper) StartServer(port int) {
