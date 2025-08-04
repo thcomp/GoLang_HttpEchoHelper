@@ -8,6 +8,10 @@ var sEchoHelperMap map[string](*EchoHelper) = map[string](*EchoHelper){}
 
 const sGlobalEchoHelperName = "### global ###"
 
+func NewEchoHelper(params ...interface{}) (ret *EchoHelper) {
+	return GetEchoHelper(params...)
+}
+
 func GetEchoHelper(params ...interface{}) (ret *EchoHelper) {
 	if len(params) > 0 {
 		if name, assertionOK := params[0].(string); assertionOK {

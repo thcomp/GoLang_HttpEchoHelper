@@ -1,46 +1,40 @@
 package HttpEchoHelper
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/thcomp/GoLang_HttpEntityHelper/entity"
 	"github.com/thcomp/GoLang_HttpEntityHelper/jsonrpc"
-	ThcompUtility "github.com/thcomp/GoLang_Utility"
 )
+
+var ErrUnknownJSONRPCMethod = fmt.Errorf("handler not known this jsonrpc method")
+
+type Authorizer func(ctx echo.Context, entityIns entity.HttpEntity) *echo.HTTPError
+
+type sMethodHandlerInfo struct {
+	subHandler SubHandlerFunc
+	authorizer Authorizer
+}
 
 type JSONRPCHandler struct {
 	createdByNew bool
-	method       string
-	needAuth     bool
-	handler      SubHandlerFunc
+	methodMap    map[string](*sMethodHandlerInfo)
 }
 
-func NewJSONRPCHandler(jsonrpcMethod string, needAuth bool, handler SubHandlerFunc) *JSONRPCHandler {
-	if handler == nil {
-		ThcompUtility.LogfE("handler cannot be nil")
-		return nil
-	} else {
-		return &JSONRPCHandler{
-			createdByNew: true,
-			method:       jsonrpcMethod,
-			needAuth:     needAuth,
-			handler:      handler,
-		}
+func NewJSONRPCHandler() *JSONRPCHandler {
+	return &JSONRPCHandler{
+		createdByNew: true,
+		methodMap:    map[string](*sMethodHandlerInfo){},
 	}
-}
-
-func (handler *JSONRPCHandler) NeedAuth() bool {
-	return handler.needAuth
 }
 
 func (handler *JSONRPCHandler) IsAcceptable(ctx echo.Context) bool {
 	header := (http.Header)(nil)
 	if ctx.Request() != nil {
 		header = ctx.Request().Header
-	} else if ctx.Response() != nil {
-		header = ctx.Response().Header()
 	}
 
 	if header != nil {
@@ -53,10 +47,48 @@ func (handler *JSONRPCHandler) IsAcceptable(ctx echo.Context) bool {
 	return false
 }
 
+func (handler *JSONRPCHandler) IsNeedEntityForAuthorize() bool {
+	return true
+}
+
+func (handler *JSONRPCHandler) Authorize(ctx echo.Context) (retErr error) {
+	helperCtx, _ := ctx.(*EchoHelperContext)
+
+	if helperCtx.entityIns.EntityType() == entity.JSONRPC_Request {
+		if jsonrpcReq, assertionOK := helperCtx.entityIns.(*jsonrpc.JSONRPCRequest); assertionOK {
+			if subHandlerInfo, exist := handler.methodMap[jsonrpcReq.Method]; exist {
+				retErr = subHandlerInfo.authorizer(ctx, jsonrpcReq)
+			}
+		}
+	} else {
+		retErr = fmt.Errorf("bad item: %v", helperCtx.entityIns)
+	}
+
+	return
+}
+
 func (handler *JSONRPCHandler) Entity(ctx echo.Context) (entity.HttpEntity, error) {
 	return jsonrpc.NewJSONRPCParser().Parse(ctx.Request()) // Parse the JSON-RPC request
 }
 
-func (handler *JSONRPCHandler) Handler(ctx echo.Context, entity entity.HttpEntity) error {
-	return handler.handler(ctx, entity) // Replace with actual handling logic
+func (handler *JSONRPCHandler) Handler(ctx echo.Context, entityIns entity.HttpEntity) error {
+	switch entityVaue := entityIns.(type) {
+	case *jsonrpc.JSONRPCRequest:
+		if subHandlerInfo, exist := handler.methodMap[entityVaue.Method]; exist {
+			return subHandlerInfo.subHandler(ctx, entityIns)
+		} else {
+			return ErrUnknownJSONRPCMethod
+		}
+	default:
+		return ErrNotAcceptable
+	}
+}
+
+func (handler *JSONRPCHandler) RegisterMethodHandler(jsonrpcMethod string, subHandler SubHandlerFunc, authorizerIfNeed Authorizer) *JSONRPCHandler {
+	handler.methodMap[jsonrpcMethod] = &sMethodHandlerInfo{
+		subHandler: subHandler,
+		authorizer: authorizerIfNeed,
+	}
+
+	return handler
 }

@@ -20,6 +20,8 @@ type SubHandlerFunc func(ctx echo.Context, entity entity.HttpEntity) error
 type LambdaTrigger int
 
 var ErrUnknownMethod = fmt.Errorf("handler not known this method, continue to next handler")
+var ErrNotAcceptable = fmt.Errorf("handler not acceptable this item")
+var ErrUnauthorized = fmt.Errorf("handler not authorize this item")
 
 const (
 	None LambdaTrigger = iota
@@ -29,8 +31,9 @@ const (
 )
 
 type SubHandlerInterface interface {
-	NeedAuth() bool
 	IsAcceptable(ctx echo.Context) bool
+	IsNeedEntityForAuthorize() bool
+	Authorize(ctx echo.Context) error
 	Entity(ctx echo.Context) (entity.HttpEntity, error)
 	Handler(ctx echo.Context, entity entity.HttpEntity) error
 }
@@ -44,6 +47,7 @@ type EchoHelper struct {
 func (helper *EchoHelper) Echo() *echo.Echo {
 	if helper.echo == nil {
 		helper.echo = echo.New()
+		helper.echo.Use(helper.exchangeContextMiddleware, helper.authenticateMiddleware)
 	}
 
 	return helper.echo
@@ -146,6 +150,82 @@ func (helper *EchoHelper) withHandler(httpMethod, path string, subHandler SubHan
 	}
 
 	return helper
+}
+
+func (helper *EchoHelper) exchangeContextMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		ctx := NewEchoHelperContext(c, helper)
+		return next(ctx)
+	}
+}
+
+func (helper *EchoHelper) authenticateMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		notFound := false
+
+		// 先にメソッドが一致するものを優先する
+		acceptableHandlers := make([]SubHandlerInterface, 0)
+		httpMethod := strings.ToLower(c.Request().Method)
+		if handlers, exist := helper.subHandlerMap[httpMethod]; exist {
+			for _, handler := range handlers {
+				if handler.IsAcceptable(c) {
+					acceptableHandlers = append(acceptableHandlers, handler)
+				}
+			}
+		}
+
+		if len(acceptableHandlers) == 0 {
+			// メソッドが一致しない場合は、全てのハンドラを
+			httpMethod = "any"
+			if handlers, exist := helper.subHandlerMap[httpMethod]; exist {
+				for _, handler := range handlers {
+					if handler.IsAcceptable(c) {
+						acceptableHandlers = append(acceptableHandlers, handler)
+					}
+				}
+			}
+		}
+
+		if len(acceptableHandlers) > 0 {
+			notFound = true
+			for _, handler := range acceptableHandlers {
+				if handler.IsNeedEntityForAuthorize() {
+					if entityIns, entityErr := handler.Entity(c); entityErr == nil {
+						ctx, _ := c.(*EchoHelperContext)
+						ctx.entityIns = entityIns
+					} else {
+						ThcompUtility.LogfE("fail to parse entity: %v", entityErr)
+						continue
+					}
+				}
+
+				if handler.Authorize(c) == nil {
+					entityIns := (entity.HttpEntity)(nil)
+					if ctx, assertionOK := c.(*EchoHelperContext); assertionOK {
+						entityIns = ctx.entityIns
+					}
+					if entityIns == nil {
+						tempEntityIns, _ := handler.Entity(c)
+						entityIns = tempEntityIns
+					}
+
+					handler.Handler(c, entityIns)
+				}
+
+				if ctx, assertionOK := c.(*EchoHelperContext); assertionOK {
+					ctx.entityIns = nil
+				}
+			}
+		} else {
+			notFound = true
+		}
+
+		if notFound {
+			return c.NoContent(http.StatusNotFound)
+		} else {
+			return nil
+		}
+	}
 }
 
 func (helper *EchoHelper) firstHandlerForSub(c echo.Context) (retErr error) {

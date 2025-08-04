@@ -56,8 +56,8 @@ github.com/thcomp/GoLang_APIHandler v1.1.0 h1:wtfY25+X8r9GrUzslHCUjRE0/1X+XzGfbp
 github.com/thcomp/GoLang_APIHandler v1.1.0/go.mod h1:mTFDMj+pjk2DsEqP/vn4XeZEm5qphn5N+EF/YIUXPpQ=
 github.com/thcomp/GoLang_AwsSDKHelper v1.5.7 h1:bc5jO14wjTNCZzNqO97GdK6vZNF2iIqWF8LLAzLs0qU=
 github.com/thcomp/GoLang_AwsSDKHelper v1.5.7/go.mod h1:XNZoz2Z06Oj60NtZz1DW6F5HfH3wvAEyd028ku3zmLY=
-github.com/thcomp/GoLang_HttpEntityHelper v1.0.3 h1:+4E8wTm4UWkuijCkeGGYPNfCl3qPbktoGmqrcZonb0o=
-github.com/thcomp/GoLang_HttpEntityHelper v1.0.3/go.mod h1:oxg0PYKr15HnZ3P47hhLahsbAPwm5EyU0+FhUJhNyZk=
+github.com/thcomp/GoLang_HttpEntityHelper v1.0.5 h1:UNsVvPSyai2MOBfj/gce5TziW8yuj36JdFWSJ5N4LHs=
+github.com/thcomp/GoLang_HttpEntityHelper v1.0.5/go.mod h1:oxg0PYKr15HnZ3P47hhLahsbAPwm5EyU0+FhUJhNyZk=
 github.com/thcomp/GoLang_TestUtility v1.0.0 h1:Vp4h760PNPsm4kRf0Wr5BapOrn5eROiLuDSk9eSh6CY=
 github.com/thcomp/GoLang_TestUtility v1.0.0/go.mod h1:3TLT8eEn+c51z33Emd745r7E9QoCgu8RFtjk9/+fsqA=
 github.com/thcomp/GoLang_Utility v1.30.0 h1:3t92u02KNHz8ek96yk+nfHLDZrl0CnSfq1/xkA4uluY=
